@@ -1,0 +1,10 @@
+ <div class="app-container" [class.scanner-page]="isScannerPage">
+      <router-outlet></router-outlet>
+      
+      <!-- Global loading spinner -->
+      @if (isLoading) {
+        <div class="global-loading-overlay">
+          <mat-spinner diameter="50"></mat-spinner>
+        </div>
+      }
+    </div>

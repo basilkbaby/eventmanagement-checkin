@@ -1,0 +1,115 @@
+<!-- components/ticket-confirm/ticket-confirm.component.html -->
+@if (isLoading()) {
+  <div class="loading-container">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Verifying ticket...</p>
+  </div>
+} @else {
+  <div class="confirm-container">
+    @if (ticketDetails()) {
+      <mat-card class="ticket-card">
+        <mat-card-header>
+          <div mat-card-avatar class="ticket-avatar">
+            <mat-icon>confirmation_number</mat-icon>
+          </div>
+          <mat-card-title>Ticket Confirmation</mat-card-title>
+          @if (ticketDetails()?.checkedIn) {
+            <mat-card-subtitle>Already Checked In</mat-card-subtitle>
+          }
+        </mat-card-header>
+
+        <mat-card-content>
+          <div class="ticket-details">
+            <div class="detail-row">
+              <mat-icon>person</mat-icon>
+              <div class="detail-content">
+                <span class="label">Attendee</span>
+                <span class="value">{{ ticketDetails()?.attendeeName }}</span>
+              </div>
+            </div>
+
+            @if (ticketDetails()?.seatNumber) {
+              <div class="detail-row">
+                <mat-icon>event_seat</mat-icon>
+                <div class="detail-content">
+                  <span class="label">Seat</span>
+                  <span class="value">{{ ticketDetails()?.seatNumber }}</span>
+                </div>
+              </div>
+            }
+
+            <div class="detail-row">
+              <mat-icon>local_activity</mat-icon>
+              <div class="detail-content">
+                <span class="label">Ticket Type</span>
+                <span class="value">{{ ticketDetails()?.ticketType }}</span>
+              </div>
+            </div>
+
+            <div class="detail-row">
+              <mat-icon>receipt</mat-icon>
+              <div class="detail-content">
+                <span class="label">Order Reference</span>
+                <span class="value">{{ ticketDetails()?.orderReference }}</span>
+              </div>
+            </div>
+
+            @if (ticketDetails()?.checkedIn) {
+              <div class="checked-in-warning">
+                <mat-icon>warning</mat-icon>
+                <span>Checked in at {{ ticketDetails()?.checkedInAt | date:'shortTime' }}</span>
+              </div>
+            }
+          </div>
+
+          @if (errorMessage()) {
+            <div class="error-message">
+              <mat-icon>error</mat-icon>
+              <span>{{ errorMessage() }}</span>
+            </div>
+          }
+
+          @if (success()) {
+            <div class="success-message">
+              <mat-icon>check_circle</mat-icon>
+              <span>Check-in successful!</span>
+              <p class="success-sub">Redirecting to scanner...</p>
+            </div>
+          }
+        </mat-card-content>
+
+        @if (!success()) {
+          <mat-card-actions align="end">
+            <button mat-button (click)="scanAnother()">
+              Scan Another
+            </button>
+            <button mat-raised-button 
+                    color="primary"
+                    (click)="confirmCheckin()"
+                    [disabled]="ticketDetails()?.checkedIn || isCheckingIn()">
+              @if (!isCheckingIn()) {
+                <span>Confirm Check-in</span>
+              } @else {
+                <mat-spinner diameter="20"></mat-spinner>
+              }
+            </button>
+          </mat-card-actions>
+        }
+      </mat-card>
+    }
+
+    @if (!ticketDetails() && errorMessage()) {
+      <div class="error-card">
+        <mat-icon class="error-icon">error_outline</mat-icon>
+        <h3>Unable to Verify Ticket</h3>
+        <p>{{ errorMessage() }}</p>
+        <button mat-raised-button color="primary" routerLink="/scanner">
+          Go to Scanner
+        </button>
+        <button mat-button routerLink="/manual">
+          Manual Entry
+        </button>
+      </div>
+    }
+  </div>
+}

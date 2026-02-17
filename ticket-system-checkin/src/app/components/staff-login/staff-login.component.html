@@ -1,0 +1,63 @@
+<!-- components/staff-login/staff-login.component.html -->
+<div class="login-container">
+  <mat-card class="login-card">
+    <mat-card-header>
+      <mat-card-title>Staff Check-in</mat-card-title>
+      <mat-card-subtitle>Enter your credentials</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Staff ID</mat-label>
+          <input matInput formControlName="staffId" placeholder="Enter your staff ID">
+          <mat-icon matSuffix>badge</mat-icon>
+          <mat-error *ngIf="f['staffId'].invalid && f['staffId'].touched">
+            Staff ID is required
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>PIN Code</mat-label>
+          <input matInput 
+                 formControlName="pin" 
+                 type="password"
+                 placeholder="Enter your PIN">
+          <mat-icon matSuffix>lock</mat-icon>
+          <mat-error *ngIf="f['pin'].invalid && f['pin'].touched">
+            PIN is required (min 4 digits)
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Event Code</mat-label>
+          <input matInput 
+                 formControlName="eventCode"
+                 placeholder="Enter event code">
+          <mat-icon matSuffix>event</mat-icon>
+          <mat-error *ngIf="f['eventCode'].invalid && f['eventCode'].touched">
+            Event code is required
+          </mat-error>
+        </mat-form-field>
+
+        @if (errorMessage()) {
+          <div class="error-message">
+            {{ errorMessage() }}
+          </div>
+        }
+
+        <button mat-raised-button 
+                color="primary" 
+                type="submit"
+                [disabled]="loginForm.invalid || isLoading()"
+                class="full-width">
+          @if (!isLoading()) {
+            <span>Login</span>
+          } @else {
+            <mat-spinner diameter="20"></mat-spinner>
+          }
+        </button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</div>

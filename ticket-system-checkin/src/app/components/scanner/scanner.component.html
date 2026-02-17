@@ -1,0 +1,48 @@
+<div class="scanner-container">
+
+  <div class="header">
+    <button class="back-btn" (click)="goBack()">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+
+    <h1>Scan QR Code</h1>
+
+    <div class="spacer"></div>
+
+    @if (availableDevices.length > 1) {
+      <button class="camera-switch" (click)="switchCamera()">
+        <mat-icon>switch_camera</mat-icon>
+      </button>
+    }
+  </div>
+
+  @if (!error) {
+<zxing-scanner
+  [device]="currentDevice"
+  [formats]="formats"
+  [videoConstraints]="videoConstraints"
+  [enable]="isScanning"
+  [timeBetweenScans]="0"
+  (scanSuccess)="onScanSuccess($event)">
+</zxing-scanner>
+
+
+  }
+
+  @if (error) {
+    <div class="error-overlay">
+      <div class="error-card">
+        <mat-icon color="warn">error</mat-icon>
+        <p>{{ error }}</p>
+        <button class="retry-btn" (click)="retry()">Try Again</button>
+      </div>
+    </div>
+  }
+
+  @if (isScanning && !error) {
+    <div class="instructions">
+      <p>Align QR code inside the frame</p>
+    </div>
+  }
+
+</div>
