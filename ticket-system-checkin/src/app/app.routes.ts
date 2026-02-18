@@ -23,7 +23,7 @@ export const routes: Routes = [
     path: 'confirm',
     loadComponent: () => import('./components/ticket-confirm/ticket-confirm.component')
       .then(m => m.TicketConfirmComponent),
-    canActivate: [AuthGuard]
+    //canActivate: [AuthGuard]
   },
 //   {
 //     path: 'manual',

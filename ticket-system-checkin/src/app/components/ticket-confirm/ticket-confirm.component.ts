@@ -7,10 +7,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { TicketService } from '../../services/ticket.service';
-import { CheckinService } from '../../services/checkin.service';
 import { AuthService } from '../../services/auth.service';
+import { CheckinResponse, CheckinResult, Order, OrderSeatDto } from '../../core/models/order.model';
 
 @Component({
   selector: 'app-ticket-confirm',
@@ -23,6 +25,8 @@ import { AuthService } from '../../services/auth.service';
     MatButtonModule,
     MatProgressSpinnerModule,
     MatDividerModule,
+    MatCheckboxModule,
+    FormsModule,
     DatePipe
   ],
   templateUrl: './ticket-confirm.component.html',
@@ -32,26 +36,28 @@ export class TicketConfirmComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private ticketService = inject(TicketService);
-  private checkinService = inject(CheckinService);
   private authService = inject(AuthService);
 
-  ticketData = signal<any>(null);
-  ticketDetails = signal<any>(null);
+  orderData = signal<Order | null>(null);
   isLoading = signal(true);
   isCheckingIn = signal(false);
   errorMessage = signal('');
   success = signal(false);
+  checkinResult = signal<{ checkedInCount: number; totalSelected: number } | null>(null);
+
+  // For partial check-in - using seatId (not the entity ID)
+  selectedSeats = signal<Set<string>>(new Set<string>());
+  checkInMode = signal<'all' | 'partial'>('all');
 
   async ngOnInit() {
     this.route.queryParams.subscribe(async params => {
       if (params['orderId'] && params['ticketId'] && params['code']) {
-        this.ticketData.set(params);
-        await this.verifyTicket();
+        await this.loadOrderDetails(params['orderId']);
       } else {
         const stored = localStorage.getItem('pending_ticket');
         if (stored) {
-          this.ticketData.set(JSON.parse(stored));
-          await this.verifyTicket();
+          const ticketData = JSON.parse(stored);
+          await this.loadOrderDetails(ticketData.orderId);
         } else {
           this.errorMessage.set('No ticket data provided');
           this.isLoading.set(false);
@@ -60,82 +66,186 @@ export class TicketConfirmComponent implements OnInit, OnDestroy {
     });
   }
 
-  async verifyTicket() {
+  async loadOrderDetails(orderId: string): Promise<void> {
     try {
-      this.isLoading.set(true);
-      this.errorMessage.set('');
-
-      const data = this.ticketData();
-      const result = await this.ticketService.verifyTicket(
-        data.ticketId,
-        data.code,
-        data.orderId
-      );
-
-      if (result.valid) {
-        this.ticketDetails.set(result.ticket);
-
-        if (result.ticket.checkedIn) {
-          this.errorMessage.set(`Already checked in at ${new Date(result.ticket.checkedInAt).toLocaleTimeString()}`);
+      this.ticketService.getOrder(orderId).subscribe({
+        next: (order: Order) => {
+          this.orderData.set(order);
+          
+          // Don't auto-select any seats
+          this.selectedSeats.set(new Set<string>());
+          this.isLoading.set(false);
+        },
+        error: (error: any) => {
+          console.error('Error loading order:', error);
+          this.errorMessage.set('Failed to load ticket details');
+          this.isLoading.set(false);
         }
-      } else {
-        this.errorMessage.set(result.error || 'Invalid ticket');
-      }
+      });
     } catch (error: any) {
-      this.errorMessage.set(error.message || 'Verification failed');
-      console.error('Verification error:', error);
-    } finally {
+      console.error('Error loading order:', error);
+      this.errorMessage.set('Failed to load ticket details');
       this.isLoading.set(false);
     }
   }
 
-  async confirmCheckin() {
-    const details = this.ticketDetails();
-    if (!details || details.checkedIn) {
+  toggleSeatSelection(seatId: string) {
+    const current = new Set<string>(this.selectedSeats());
+    if (current.has(seatId)) {
+      current.delete(seatId);
+    } else {
+      current.add(seatId);
+    }
+    this.selectedSeats.set(current);
+    
+    // Update mode based on selection
+    const totalSeats = this.orderData()?.seats?.length || 0;
+    if (current.size === totalSeats) {
+      this.checkInMode.set('all');
+    } else if (current.size > 0) {
+      this.checkInMode.set('partial');
+    }
+  }
+
+  selectAllSeats() {
+    const order = this.orderData();
+    if (order?.seats) {
+      // Only select seats that are NOT checked in
+      const availableSeats = order.seats
+        .filter(seat => !seat.isCheckedIn)
+        .map(seat => seat.seatId);
+      
+      const allSeatIds = new Set<string>(availableSeats);
+      this.selectedSeats.set(allSeatIds);
+      this.checkInMode.set('all');
+    }
+  }
+
+  deselectAllSeats() {
+    this.selectedSeats.set(new Set<string>());
+    this.checkInMode.set('partial');
+  }
+
+  confirmCheckin() {
+    if (this.selectedSeats().size === 0) {
+      this.errorMessage.set('Please select at least one seat to check in');
       return;
     }
 
-    try {
-      this.isCheckingIn.set(true);
-      this.errorMessage.set('');
+    this.isCheckingIn.set(true);
+    this.errorMessage.set('');
+    this.checkinResult.set(null);
 
-      const staffInfo = this.authService.getCurrentStaff();
-
-      const result = await this.checkinService.confirmCheckin({
-        ticketId: details.id,
-        staffId: staffInfo.id ?? "",
-        staffName: staffInfo.name ?? "",
-        eventId: details.eventId,
-        deviceId: this.getDeviceId()
-      });
-
-      if (result.success) {
-        this.success.set(true);
-        
-        // Update ticket details
-        this.ticketDetails.update(current => ({
-          ...current,
-          checkedIn: true,
-          checkedInAt: new Date().toISOString()
-        }));
-
-        // Clear stored ticket data
-        localStorage.removeItem('pending_ticket');
-
-        // Auto-return to scanner after delay
-        setTimeout(() => {
-          this.router.navigate(['/scanner']);
-        }, 3000);
-      }
-    } catch (error: any) {
-      this.errorMessage.set(error.message || 'Check-in failed');
-    } finally {
+    const staffInfo = this.authService.getCurrentStaff();
+    const order = this.orderData();
+    
+    if (!order) {
+      this.errorMessage.set('Order data not found');
       this.isCheckingIn.set(false);
+      return;
     }
+
+    // Get the seat IDs that are selected
+    const selectedSeatIds = Array.from(this.selectedSeats());
+
+    this.ticketService.confirmCheckin({
+      orderId: order.orderId,
+      seatIds: selectedSeatIds,
+      staffId: staffInfo.id ?? "",
+      staffName: staffInfo.name ?? "",
+      eventId: order.eventId,
+    }).subscribe({
+      next: (response: CheckinResponse) => {
+        if (response.success) {
+          // Update local seat status
+          const updatedOrder = { ...order };
+          updatedOrder.seats = order.seats.map(seat => ({
+            ...seat,
+            isCheckedIn: selectedSeatIds.includes(seat.seatId) ? true : seat.isCheckedIn
+          }));
+          this.orderData.set(updatedOrder);
+
+          // Clear selection
+          this.selectedSeats.set(new Set<string>());
+
+          // Show detailed success message
+          if (response.data) {
+            const { checkedInCount, totalSelected, results } = response.data;
+            this.checkinResult.set({ checkedInCount, totalSelected });
+            
+            const failedCount = results.filter((r: CheckinResult) => !r.success).length;
+            
+            if (failedCount === 0) {
+              // All selected seats checked in successfully
+              this.success.set(true);
+              this.errorMessage.set(''); // Clear any error messages
+              console.log(`✅ Successfully checked in ${checkedInCount} of ${totalSelected} seats`);
+            } else {
+              // Some seats failed
+              const failedSeats = results
+                .filter((r: CheckinResult) => !r.success)
+                .map((r: CheckinResult) => r.seatNumber)
+                .join(', ');
+              this.errorMessage.set(`Failed to check in seats: ${failedSeats}`);
+              this.success.set(true); // Still show success for the ones that worked
+            }
+          } else {
+            // Simple success message if no detailed data
+            this.success.set(true);
+          }
+        } else {
+          // API returned success: false
+          this.errorMessage.set(response.message || 'Check-in failed');
+          this.isCheckingIn.set(false);
+        }
+      },
+      error: (error: any) => {
+        console.error('Check-in error:', error);
+        
+        // Extract error message
+        let errorMsg = 'Check-in failed';
+        if (error.error?.message) {
+          errorMsg = error.error.message;
+        } else if (error.message) {
+          errorMsg = error.message;
+        } else if (typeof error.error === 'string') {
+          errorMsg = error.error;
+        }
+        
+        this.errorMessage.set(errorMsg);
+        this.isCheckingIn.set(false);
+      }
+    });
   }
 
   scanAnother() {
     this.router.navigate(['/scanner']);
+  }
+
+  getCheckedInCount(): number {
+    return this.orderData()?.seats?.filter(seat => seat.isCheckedIn).length || 0;
+  }
+
+  getSelectedCount(): number {
+    return this.selectedSeats().size;
+  }
+
+  getRemainingCount(): number {
+    const total = this.orderData()?.seats?.length || 0;
+    const checkedIn = this.getCheckedInCount();
+    return total - checkedIn;
+  }
+
+  areAllCheckedIn(): boolean {
+    return this.getRemainingCount() === 0;
+  }
+
+  isSeatCheckedIn(seat: OrderSeatDto): boolean {
+    return seat.isCheckedIn === true;
+  }
+
+  getCheckedInSeats(): OrderSeatDto[] {
+    return this.orderData()?.seats?.filter(seat => seat.isCheckedIn) || [];
   }
 
   private getDeviceId(): string {

@@ -117,28 +117,50 @@ this.decodeHints.set(DecodeHintType.POSSIBLE_FORMATS, this.formats);
   }
 
   private showResult(data: string) {
-    const dialogRef = this.dialog.open(ScanResultDialogComponent, {
-      data: { scannedData: data },
-      width: '90%',
-      maxWidth: '400px'
-    });
 
-    dialogRef.afterClosed().subscribe(action => {
-      this.scanLock = false;
+    const params = this.qrService.parseQRUrl(data);
+    console.log('Parsed QR params:', params);
+    //alert(JSON.stringify(params));
+    if (params) {
+      this.router.navigate(['/confirm'], {
+        queryParams: params,
+        replaceUrl: true
+      });
+    } else {
+      this.dialog.open(ScanResultDialogComponent, {
+        data: {
+          scannedData: data,
+          isRawData: true,
+          message: 'Invalid QR code format'
+        }
+      }).afterClosed().subscribe(() => {
+        this.isScanning = true;
+      });
+    }
 
-      if (action === 'again') {
-        this.isScanning = true;
-      } else if (action === 'navigate') {
-        this.processQRData(data);
-      } else {
-        this.isScanning = true;
-      }
-    });
+    // const dialogRef = this.dialog.open(ScanResultDialogComponent, {
+    //   data: { scannedData: data },
+    //   width: '90%',
+    //   maxWidth: '400px'
+    // });
+
+    // dialogRef.afterClosed().subscribe(action => {
+    //   this.scanLock = false;
+
+    //   if (action === 'again') {
+    //     this.isScanning = true;
+    //   } else if (action === 'navigate') {
+    //     this.processQRData(data);
+    //   } else {
+    //     this.isScanning = true;
+    //   }
+    // });
   }
 
   private processQRData(data: string) {
     const params = this.qrService.parseQRUrl(data);
-
+    console.log('Parsed QR params:', params);
+    alert(JSON.stringify(params));
     if (params) {
       this.router.navigate(['/confirm'], {
         queryParams: params,

@@ -1,113 +1,216 @@
 <!-- components/ticket-confirm/ticket-confirm.component.html -->
 @if (isLoading()) {
   <div class="loading-container">
-    <mat-spinner diameter="50"></mat-spinner>
-    <p>Verifying ticket...</p>
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Loading...</p>
   </div>
 } @else {
   <div class="confirm-container">
-    @if (ticketDetails()) {
-      <mat-card class="ticket-card">
-        <mat-card-header>
-          <div mat-card-avatar class="ticket-avatar">
-            <mat-icon>confirmation_number</mat-icon>
+    @if (orderData()) {
+      <!-- Header with Scan Another -->
+      <div class="header">
+        <div class="order-ref">
+          <span class="label">Order</span>
+          <span class="value">#{{ orderData()?.orderNumber }}</span>
+        </div>
+        <button class="scan-another-btn" (click)="scanAnother()" mat-icon-button>
+          <mat-icon>qr_code_scanner</mat-icon>
+        </button>
+      </div>
+
+      <!-- Event Card -->
+      <div class="event-card">
+        <div class="event-name">{{ orderData()?.eventName }}</div>
+        <div class="event-meta">
+          <span>
+            <mat-icon>event</mat-icon>
+            {{ orderData()?.eventDate | date:'d MMM y, h:mm a' }}
+          </span>
+          <span>
+            <mat-icon>location_on</mat-icon>
+            {{ orderData()?.venue }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Customer Card -->
+      <div class="customer-card">
+        <div class="customer-name">{{ orderData()?.customerName }}</div>
+        <div class="customer-details">
+          <span>
+            <mat-icon>email</mat-icon>
+            {{ orderData()?.customerEmail }}
+          </span>
+          <span>
+            <mat-icon>phone</mat-icon>
+            {{ orderData()?.customerPhone }}
+          </span>
+          <span>
+            <mat-icon>location_on</mat-icon>
+            {{ orderData()?.customerPostCode }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat">
+          <div class="value">{{ orderData()?.seats?.length || 0 }}</div>
+          <div class="label">Total</div>
+        </div>
+        <div class="stat">
+          <div class="value">{{ getCheckedInCount() }}</div>
+          <div class="label">Checked</div>
+        </div>
+        <div class="stat">
+          <div class="value">{{ getRemainingCount() }}</div>
+          <div class="label">Remaining</div>
+        </div>
+      </div>
+
+      <!-- Error Message -->
+      @if (errorMessage() && !success()) {
+        <div class="error-message">
+          <mat-icon>error</mat-icon>
+          <div class="message-content">
+            <span class="message-title">Check-in Failed</span>
+            <span class="message-text">{{ errorMessage() }}</span>
           </div>
-          <mat-card-title>Ticket Confirmation</mat-card-title>
-          @if (ticketDetails()?.checkedIn) {
-            <mat-card-subtitle>Already Checked In</mat-card-subtitle>
-          }
-        </mat-card-header>
+          <button class="close-btn" (click)="errorMessage.set('')" mat-icon-button>
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      }
 
-        <mat-card-content>
-          <div class="ticket-details">
-            <div class="detail-row">
-              <mat-icon>person</mat-icon>
-              <div class="detail-content">
-                <span class="label">Attendee</span>
-                <span class="value">{{ ticketDetails()?.attendeeName }}</span>
-              </div>
-            </div>
-
-            @if (ticketDetails()?.seatNumber) {
-              <div class="detail-row">
-                <mat-icon>event_seat</mat-icon>
-                <div class="detail-content">
-                  <span class="label">Seat</span>
-                  <span class="value">{{ ticketDetails()?.seatNumber }}</span>
-                </div>
-              </div>
-            }
-
-            <div class="detail-row">
-              <mat-icon>local_activity</mat-icon>
-              <div class="detail-content">
-                <span class="label">Ticket Type</span>
-                <span class="value">{{ ticketDetails()?.ticketType }}</span>
-              </div>
-            </div>
-
-            <div class="detail-row">
-              <mat-icon>receipt</mat-icon>
-              <div class="detail-content">
-                <span class="label">Order Reference</span>
-                <span class="value">{{ ticketDetails()?.orderReference }}</span>
-              </div>
-            </div>
-
-            @if (ticketDetails()?.checkedIn) {
-              <div class="checked-in-warning">
-                <mat-icon>warning</mat-icon>
-                <span>Checked in at {{ ticketDetails()?.checkedInAt | date:'shortTime' }}</span>
-              </div>
+      <!-- Success Message -->
+      @if (success() && !errorMessage()) {
+        <div class="success-message">
+          <mat-icon>check_circle</mat-icon>
+          <div class="message-content">
+            <span class="message-title">Check-in Successful!</span>
+            @if (checkinResult()) {
+              <span class="message-text">
+                Checked in {{ checkinResult()?.checkedInCount }} of {{ checkinResult()?.totalSelected }} seats
+              </span>
+            } @else {
+              <span class="message-text">All selected seats have been checked in</span>
             }
           </div>
+        </div>
+      }
 
-          @if (errorMessage()) {
-            <div class="error-message">
-              <mat-icon>error</mat-icon>
-              <span>{{ errorMessage() }}</span>
-            </div>
-          }
+      <!-- Partial Failure Message -->
+      @if (errorMessage() && success()) {
+        <div class="warning-message">
+          <mat-icon>warning</mat-icon>
+          <div class="message-content">
+            <span class="message-title">Partial Check-in</span>
+            <span class="message-text">{{ errorMessage() }}</span>
+          </div>
+          <button class="close-btn" (click)="errorMessage.set('')" mat-icon-button>
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      }
 
-          @if (success()) {
-            <div class="success-message">
-              <mat-icon>check_circle</mat-icon>
-              <span>Check-in successful!</span>
-              <p class="success-sub">Redirecting to scanner...</p>
-            </div>
-          }
-        </mat-card-content>
+      <!-- Select All Option (only if there are seats to check in) -->
+      @if (!areAllCheckedIn() && getRemainingCount() > 0 && !success()) {
+        <div class="select-all-row">
+          <mat-checkbox 
+            [checked]="selectedSeats().size === getRemainingCount()"
+            [indeterminate]="selectedSeats().size > 0 && selectedSeats().size < getRemainingCount()"
+            [disabled]="getRemainingCount() === 0"
+            (change)="selectedSeats().size === getRemainingCount() ? deselectAllSeats() : selectAllSeats()">
+            <span class="select-all-text">Select All Available Seats</span>
+            <span class="select-all-count">({{ selectedSeats().size }}/{{ getRemainingCount() }} selected)</span>
+          </mat-checkbox>
+        </div>
+      }
 
-        @if (!success()) {
-          <mat-card-actions align="end">
-            <button mat-button (click)="scanAnother()">
-              Scan Another
-            </button>
-            <button mat-raised-button 
-                    color="primary"
-                    (click)="confirmCheckin()"
-                    [disabled]="ticketDetails()?.checkedIn || isCheckingIn()">
-              @if (!isCheckingIn()) {
-                <span>Confirm Check-in</span>
+      <!-- Seats List -->
+      @if (orderData()?.seats && orderData()?.seats!.length > 0) {
+        <div class="seats-list">
+          @for (seat of orderData()?.seats; track seat.seatId) {
+            <div class="seat-item" 
+                 [class.checked-in]="seat.isCheckedIn"
+                 [class.selected]="selectedSeats().has(seat.seatId) && !seat.isCheckedIn && !success()">
+              
+              @if (!seat.isCheckedIn && !success()) {
+                <mat-checkbox 
+                  [checked]="selectedSeats().has(seat.seatId)"
+                  (change)="toggleSeatSelection(seat.seatId)">
+                </mat-checkbox>
+              } @else if (seat.isCheckedIn) {
+                <mat-icon class="checked-icon">check_circle</mat-icon>
               } @else {
-                <mat-spinner diameter="20"></mat-spinner>
+                <div class="checkbox-placeholder"></div>
               }
-            </button>
-          </mat-card-actions>
+              
+              <mat-icon class="seat-icon" [class.checked]="seat.isCheckedIn">event_seat</mat-icon>
+              
+              <div class="seat-info">
+                <div class="seat-number">{{ seat.seatNumber }}</div>
+                <div class="seat-section">{{ seat.sectionName }}</div>
+              </div>
+
+              @if (seat.isCheckedIn) {
+                <div class="checked-badge">
+                  <mat-icon>verified</mat-icon>
+                  <span>Checked In</span>
+                </div>
+              } @else if (seat.price > 0) {
+                <div class="seat-price">{{ seat.price | currency:'GBP' }}</div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Already Checked In Message -->
+      @if (areAllCheckedIn()) {
+        <div class="all-checked-message">
+          <mat-icon>check_circle</mat-icon>
+          <span>All seats have been checked in</span>
+        </div>
+      }
+
+      <!-- Action Buttons Footer -->
+      <div class="action-footer">
+        @if (!success() && !areAllCheckedIn()) {
+          <!-- Check-in Button -->
+          <button class="checkin-btn" 
+                  (click)="confirmCheckin()"
+                  [disabled]="selectedSeats().size === 0 || isCheckingIn()">
+            @if (!isCheckingIn()) {
+              <span>
+                <mat-icon>check_circle</mat-icon>
+                Check In {{ selectedSeats().size }} Seat{{ selectedSeats().size !== 1 ? 's' : '' }}
+              </span>
+            } @else {
+              <mat-spinner diameter="20"></mat-spinner>
+            }
+          </button>
         }
-      </mat-card>
+
+        @if (success() || areAllCheckedIn()) {
+          <!-- Scan Again Button -->
+          <button class="scan-again-btn" (click)="scanAnother()">
+            <mat-icon>qr_code_scanner</mat-icon>
+            Scan Another Ticket
+          </button>
+        }
+      </div>
     }
 
-    @if (!ticketDetails() && errorMessage()) {
-      <div class="error-card">
-        <mat-icon class="error-icon">error_outline</mat-icon>
-        <h3>Unable to Verify Ticket</h3>
+    <!-- Error State -->
+    @if (!orderData() && errorMessage()) {
+      <div class="error-state">
+        <mat-icon>error_outline</mat-icon>
+        <h3>Unable to Verify</h3>
         <p>{{ errorMessage() }}</p>
-        <button mat-raised-button color="primary" routerLink="/scanner">
-          Go to Scanner
-        </button>
-        <button mat-button routerLink="/manual">
-          Manual Entry
+        <button class="scan-again-btn" (click)="scanAnother()">
+          <mat-icon>qr_code_scanner</mat-icon>
+          Scan Again
         </button>
       </div>
     }
