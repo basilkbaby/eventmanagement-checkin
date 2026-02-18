@@ -1,17 +1,21 @@
-// services/auth.service.ts
-import { Injectable, inject, signal } from '@angular/core';
+// src/app/core/services/auth.service.ts
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { BehaviorSubject, Observable, tap, catchError, of } from 'rxjs';
+import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
-import { firstValueFrom } from 'rxjs';
+import { User, UserEvent } from '../core/models/user.interfaces';
 
-export interface StaffSession {
-  staffId: string;
-  staffName: string;
-  eventId: string;
-  eventName: string;
+
+
+export interface LoginResponse {
   token: string;
-  expiresAt: string;
-  permissions: string[];
+  expiration: string;
+  userId: string;
+  email: string;
+  roles: string[];
+  firstName?: string;
+  lastName?: string;
 }
 
 @Injectable({
@@ -19,96 +23,158 @@ export interface StaffSession {
 })
 export class AuthService {
   private http = inject(HttpClient);
-  private apiUrl = environment.apiUrl;
-  private readonly SESSION_KEY = 'staff_session';
+  private router = inject(Router);
+  private apiUrl = environment.apiUrl+'/api'; // Adjust if your API has a different base path
   
-  private session = signal<StaffSession | null>(null);
+  private currentUserSubject = new BehaviorSubject<User | null>(null);
+  public currentUser$ = this.currentUserSubject.asObservable();
+  
+  private tokenCheckInterval?: any;
 
   constructor() {
-    // Load session from localStorage on initialization
-    this.loadSession();
+    this.loadCurrentUser();
+    this.startTokenMonitoring();
   }
 
-  private loadSession() {
-    const sessionStr = localStorage.getItem(this.SESSION_KEY);
-    if (sessionStr) {
-      try {
-        const sessionData = JSON.parse(sessionStr);
-        this.session.set(sessionData);
-      } catch (error) {
-        console.error('Error loading session:', error);
-        localStorage.removeItem(this.SESSION_KEY);
-      }
+  // Login method (returns Observable)
+  login(email: string, password: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.apiUrl}/Auth/login`, {
+      email,
+      password
+    }).pipe(
+      tap(response => {
+        this.storeAuthData(response);
+        this.loadCurrentUser();
+      }),
+      catchError(error => {
+        console.error('Login error:', error);
+        throw error;
+      })
+    );
+  }
+
+  // Register method
+  register(userData: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}/auth/register`, userData);
+  }
+
+  // Store authentication data
+  private storeAuthData(authResponse: LoginResponse): void {
+    localStorage.setItem('token', authResponse.token);
+    localStorage.setItem('token_expiration', authResponse.expiration);
+    localStorage.setItem('user_id', authResponse.userId);
+    localStorage.setItem('user_email', authResponse.email);
+    localStorage.setItem('user_roles', JSON.stringify(authResponse.roles));
+  }
+
+  // Load current user from localStorage
+  private loadCurrentUser(): void {
+    const token = this.getToken();
+    if (token && !this.isTokenExpired()) {
+      const user: User = {
+        id: localStorage.getItem('user_id') || '',
+        email: localStorage.getItem('user_email') || '',
+        firstName: localStorage.getItem('user_first_name') || '',
+        lastName: localStorage.getItem('user_last_name') || '',
+        roles: JSON.parse(localStorage.getItem('user_roles') || '[]'),
+        isActive : true,
+        createdAt: new Date(),
+        events: []
+      };
+      this.currentUserSubject.next(user);
+    } else {
+      this.currentUserSubject.next(null);
     }
   }
 
-  async login(staffId: string, pin: string, eventCode: string): Promise<boolean> {
+  // Get token
+  getToken(): string | null {
+    return localStorage.getItem('token');
+  }
+
+  // Check if token is expired - ADD THIS METHOD
+  isTokenExpired(): boolean {
+    const expiration = localStorage.getItem('token_expiration');
+    if (!expiration) return true;
+    
     try {
-      const response = await firstValueFrom(
-        this.http.post<{ success: boolean; token: string; staffId: string; staffName: string; eventId: string; eventName: string; permissions: string[] }>(
-          `${this.apiUrl}/auth/staff-login`,
-          { staffId, pin, eventCode }
-        )
-      );
-
-      if (response.success && response.token) {
-        const sessionData: StaffSession = {
-          staffId: response.staffId,
-          staffName: response.staffName,
-          eventId: response.eventId,
-          eventName: response.eventName,
-          token: response.token,
-          expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(), // 12 hours
-          permissions: response.permissions || []
-        };
-
-        this.saveSession(sessionData);
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error('Login error:', error);
-      return false;
+      return new Date() > new Date(expiration);
+    } catch {
+      return true;
     }
   }
 
-  private saveSession(sessionData: StaffSession) {
-    localStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
-    this.session.set(sessionData);
-  }
-
+  // Check if user is authenticated - ADD THIS METHOD
   isAuthenticated(): boolean {
-    const currentSession = this.session();
-    if (!currentSession) return false;
-
-    // Check if session is expired
-    return new Date(currentSession.expiresAt) > new Date();
+    const token = this.getToken();
+    return !!token && !this.isTokenExpired();
   }
 
-  getSession(): StaffSession | null {
-    return this.session();
+  // Check if user has specific role
+  hasRole(role: string): boolean {
+    const user = this.currentUserSubject.value;
+    return user ? user.roles.includes(role) : false;
   }
 
-  getCurrentStaff() {
-    const session = this.session();
-    return {
-      id: session?.staffId,
-      name: session?.staffName,
-      eventId: session?.eventId
-    };
+  // Logout
+  logout(): void {
+    this.clearAuthData();
+    this.currentUserSubject.next(null);
+    this.stopTokenMonitoring();
+    this.router.navigate(['/login']);
   }
 
-  getToken(): string {
-    return this.session()?.token || '';
+  // Get current user
+  getCurrentUser(): User | null {
+    return this.currentUserSubject.value;
   }
 
-  logout() {
-    localStorage.removeItem(this.SESSION_KEY);
-    this.session.set(null);
+  private startTokenMonitoring(): void {
+    this.tokenCheckInterval = setInterval(() => {
+      if (!this.isTokenValid()) {
+        this.logout();
+      }
+    }, 60000); // Check every minute
   }
 
-  refreshSession() {
-    this.loadSession();
+  private stopTokenMonitoring(): void {
+    if (this.tokenCheckInterval) {
+      clearInterval(this.tokenCheckInterval);
+    }
+  }
+
+  // Check if token is valid (with buffer)
+  isTokenValid(): boolean {
+    return this.isAuthenticated();
+  }
+
+  private clearAuthData(): void {
+    localStorage.removeItem('token');
+    localStorage.removeItem('token_expiration');
+    localStorage.removeItem('user_id');
+    localStorage.removeItem('user_email');
+    localStorage.removeItem('user_roles');
+    localStorage.removeItem('user_first_name');
+    localStorage.removeItem('user_last_name');
+  }
+
+  validateToken(): Observable<{ valid: boolean }> {
+    const token = this.getToken();
+    if (!token || !this.isTokenValid()) {
+      return of({ valid: false });
+    }
+
+    // Call your API to validate token
+    return this.http.get<{ valid: boolean }>(`${this.apiUrl}/auth/validate-token`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }).pipe(
+      catchError(() => of({ valid: false }))
+    );
+  }
+
+  getUserEvents(userId: string): Observable<UserEvent[]> {
+    return this.http.get<UserEvent[]>(`${this.apiUrl}/AdminUsers/${userId}/events`);
   }
 }

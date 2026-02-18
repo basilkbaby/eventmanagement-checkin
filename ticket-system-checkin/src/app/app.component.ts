@@ -41,13 +41,6 @@ export class AppComponent implements OnInit {
     // Check authentication status on app start
     this.checkAuthStatus();
     
-    // Handle page visibility changes
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        // App came back to foreground - refresh session if needed
-        this.authService.refreshSession();
-      }
-    });
   }
   
   private checkAuthStatus() {

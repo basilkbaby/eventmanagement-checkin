@@ -136,7 +136,7 @@ export class TicketConfirmComponent implements OnInit, OnDestroy {
     this.errorMessage.set('');
     this.checkinResult.set(null);
 
-    const staffInfo = this.authService.getCurrentStaff();
+    const staffInfo = this.authService.getCurrentUser();
     const order = this.orderData();
     
     if (!order) {
@@ -151,8 +151,8 @@ export class TicketConfirmComponent implements OnInit, OnDestroy {
     this.ticketService.confirmCheckin({
       orderId: order.orderId,
       seatIds: selectedSeatIds,
-      staffId: staffInfo.id ?? "",
-      staffName: staffInfo.name ?? "",
+      staffId: staffInfo?.id ?? "",
+      staffName: staffInfo?.firstName ?? "",
       eventId: order.eventId,
     }).subscribe({
       next: (response: CheckinResponse) => {

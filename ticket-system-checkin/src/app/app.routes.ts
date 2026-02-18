@@ -5,7 +5,7 @@ import { AuthGuard } from './guards/auth.guard';
 export const routes: Routes = [
   {
     path: '',
-    redirectTo: 'scanner',
+    redirectTo: 'login',
     pathMatch: 'full'
   },
   {
@@ -17,13 +17,13 @@ export const routes: Routes = [
     path: 'scanner',
     loadComponent: () => import('./components/scanner/scanner.component')
       .then(m => m.ScannerComponent),
-    //canActivate: [AuthGuard]
+    canActivate: [AuthGuard]
   },
   {
     path: 'confirm',
     loadComponent: () => import('./components/ticket-confirm/ticket-confirm.component')
       .then(m => m.TicketConfirmComponent),
-    //canActivate: [AuthGuard]
+    canActivate: [AuthGuard]
   },
 //   {
 //     path: 'manual',

@@ -2,62 +2,105 @@
 <div class="login-container">
   <mat-card class="login-card">
     <mat-card-header>
-      <mat-card-title>Staff Check-in</mat-card-title>
-      <mat-card-subtitle>Enter your credentials</mat-card-subtitle>
+      <mat-card-title>Staff Login</mat-card-title>
+      <mat-card-subtitle>Enter your credentials to access the scanner</mat-card-subtitle>
     </mat-card-header>
 
     <mat-card-content>
-      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Staff ID</mat-label>
-          <input matInput formControlName="staffId" placeholder="Enter your staff ID">
-          <mat-icon matSuffix>badge</mat-icon>
-          <mat-error *ngIf="f['staffId'].invalid && f['staffId'].touched">
-            Staff ID is required
-          </mat-error>
-        </mat-form-field>
+      <!-- Ticket Info Banner (if coming from QR scan) -->
+      @if (ticketData && !showEventSelection()) {
+        <div class="ticket-info">
+          <mat-icon>confirmation_number</mat-icon>
+          <span>Ticket selected - Please login to confirm</span>
+        </div>
+      }
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>PIN Code</mat-label>
-          <input matInput 
-                 formControlName="pin" 
-                 type="password"
-                 placeholder="Enter your PIN">
-          <mat-icon matSuffix>lock</mat-icon>
-          <mat-error *ngIf="f['pin'].invalid && f['pin'].touched">
-            PIN is required (min 4 digits)
-          </mat-error>
-        </mat-form-field>
+      <!-- Error Message -->
+      @if (errorMessage()) {
+        <div class="error-message">
+          <mat-icon>error</mat-icon>
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Event Code</mat-label>
-          <input matInput 
-                 formControlName="eventCode"
-                 placeholder="Enter event code">
-          <mat-icon matSuffix>event</mat-icon>
-          <mat-error *ngIf="f['eventCode'].invalid && f['eventCode'].touched">
-            Event code is required
-          </mat-error>
-        </mat-form-field>
+      <!-- Login Form (hidden when showing event selection) -->
+      @if (!showEventSelection()) {
+        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+          <!-- Email Field -->
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Email</mat-label>
+            <input matInput formControlName="email" placeholder="Enter your email" autocomplete="username">
+            <mat-icon matPrefix>email</mat-icon>
+            @if (f['email'].invalid && f['email'].touched) {
+              <mat-error>
+                @if (f['email'].errors?.['required']) {
+                  Email is required
+                }
+                @if (f['email'].errors?.['email']) {
+                  Please enter a valid email
+                }
+              </mat-error>
+            }
+          </mat-form-field>
 
-        @if (errorMessage()) {
-          <div class="error-message">
-            {{ errorMessage() }}
-          </div>
-        }
+          <!-- Password Field -->
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Password</mat-label>
+            <input matInput [type]="hidePassword ? 'password' : 'text'" 
+                   formControlName="password" placeholder="Enter your password" 
+                   autocomplete="current-password">
+            <mat-icon matPrefix>lock</mat-icon>
+            <button mat-icon-button matSuffix type="button" (click)="togglePasswordVisibility()">
+              <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            @if (f['password'].invalid && f['password'].touched) {
+              <mat-error>Password is required</mat-error>
+            }
+          </mat-form-field>
 
-        <button mat-raised-button 
-                color="primary" 
-                type="submit"
-                [disabled]="loginForm.invalid || isLoading()"
-                class="full-width">
-          @if (!isLoading()) {
-            <span>Login</span>
-          } @else {
-            <mat-spinner diameter="20"></mat-spinner>
-          }
-        </button>
-      </form>
+          <!-- Submit Button -->
+          <button mat-raised-button color="primary" type="submit" 
+                  class="full-width" [disabled]="isLoading()">
+            @if (isLoading()) {
+              <mat-spinner diameter="20"></mat-spinner>
+              <span>Logging in...</span>
+            } @else {
+              <span>Login</span>
+            }
+          </button>
+        </form>
+      }
+
+      <!-- Event Selection (shown after login if multiple events) -->
+      @if (showEventSelection()) {
+        <div class="event-selection">
+          <h3>Select Event</h3>
+          <p class="info-text">You have access to multiple events. Please select one to continue:</p>
+          
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Choose an event</mat-label>
+            <mat-select (selectionChange)="onEventSelected($event.value)">
+              @for (event of accessibleEvents; track event.id) {
+                <mat-option [value]="event">
+                  {{ event.name }} ({{ event.code || event.id }})
+                  @if (event.date) {
+                    <span class="event-date"> - {{ event.date | date }}</span>
+                  }
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+      }
     </mat-card-content>
+
+    <mat-card-actions align="end">
+      <a mat-button routerLink="/help">Need help?</a>
+      @if (showEventSelection()) {
+        <button mat-button color="warn" (click)="showEventSelection.set(false); authService.logout()">
+          <mat-icon>logout</mat-icon> Different Account
+        </button>
+      }
+    </mat-card-actions>
   </mat-card>
 </div>
