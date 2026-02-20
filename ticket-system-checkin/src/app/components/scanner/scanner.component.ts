@@ -17,6 +17,7 @@ import {
 } from '@zxing/library';
 import { QrService } from '../../services/qr.service';
 import { ScanResultDialogComponent } from './scan-result-dialog/scan-result-dialog.component';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-scanner',
@@ -37,6 +38,7 @@ export class ScannerComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private dialog = inject(MatDialog);
   private qrService = inject(QrService);
+  private authService = inject(AuthService);
 
   isScanning = true;
   error = '';
@@ -187,6 +189,10 @@ this.decodeHints.set(DecodeHintType.POSSIBLE_FORMATS, this.formats);
 
   goBack() {
     this.router.navigate(['/']);
+  }
+
+  logout(): void {
+    this.authService.logout(); // Service handles navigation internally
   }
 
   ngOnDestroy() {
