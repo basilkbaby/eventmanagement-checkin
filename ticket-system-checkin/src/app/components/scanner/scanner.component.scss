@@ -1,102 +1,176 @@
-.scanner {
-  position: absolute;
+.scanner-container {
+  position: fixed;
   inset: 0;
-}
-
-::ng-deep video {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover;
-}
-
-/* Optional visual guide frame */
-.scanner-container::after {
-  content: '';
-  position: absolute;
-  width: 60%;
-  aspect-ratio: 1;
-  border: 3px solid #4CAF50;
-  border-radius: 16px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
+  background: #000;
 }
 
 .header {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 10;
+  z-index: 1000;
   display: flex;
   align-items: center;
-  padding: 16px;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
   
-  .back-btn {
-    background: transparent;
+  button {
+    background: rgba(0, 0, 0, 0.4);
     border: none;
-    cursor: pointer;
-    color: white;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 8px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
     
     mat-icon {
+      color: white;
       font-size: 24px;
       width: 24px;
       height: 24px;
-      color: white;
+    }
+    
+    &:active {
+      background: rgba(0, 0, 0, 0.6);
     }
   }
   
   h1 {
     color: white;
-    font-size: 1.2rem;
-    margin: 0 0 0 16px;
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin: 0;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
   }
   
   .spacer {
-    flex: 1;
+    width: 40px; // Match button width for balance
   }
+}
+
+::ng-deep video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+}
+
+/* QR guide frame */
+.scanner-container::after {
+  content: '';
+  position: fixed;
+  width: 70%;
+  max-width: 300px;
+  aspect-ratio: 1;
+  border: 3px solid #4CAF50;
+  border-radius: 20px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+}
+
+.instructions {
+  position: fixed;
+  bottom: 30px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  z-index: 1000;
+  color: white;
   
-  .menu-btn {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px;
+  p {
+    background: rgba(0, 0, 0, 0.6);
+    display: inline-block;
+    padding: 10px 24px;
+    border-radius: 40px;
+    font-size: 14px;
+    margin: 0;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+}
+
+.error-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+  
+  .error-card {
+    background: white;
+    padding: 32px 24px;
+    border-radius: 20px;
+    text-align: center;
+    width: 100%;
+    max-width: 280px;
     
     mat-icon {
-      font-size: 24px;
-      width: 24px;
-      height: 24px;
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      margin-bottom: 16px;
+      color: #f44336;
+    }
+    
+    p {
+      color: #333;
+      margin: 0 0 24px 0;
+      font-size: 16px;
+    }
+    
+    .retry-btn {
+      background: #4CAF50;
       color: white;
+      border: none;
+      padding: 12px 32px;
+      border-radius: 30px;
+      font-size: 16px;
+      font-weight: 500;
+      width: 100%;
+      cursor: pointer;
+      
+      &:active {
+        background: #45a049;
+      }
     }
   }
 }
 
-.instructions {
-  position: absolute;
-  bottom: 40px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  z-index: 10;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-}
-
-.error-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 20;
+// Material menu customization for mobile
+::ng-deep .mat-mdc-menu-panel {
+  max-width: none !important;
+  width: auto !important;
+  min-width: 160px !important;
+  border-radius: 12px !important;
+  
+  .mat-mdc-menu-item {
+    min-height: 48px;
+    
+    .mat-icon {
+      margin-right: 12px;
+      color: #666;
+    }
+    
+    span {
+      font-size: 14px;
+    }
+    
+    &:active {
+      background: #f5f5f5;
+    }
+  }
 }
