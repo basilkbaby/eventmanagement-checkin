@@ -70,6 +70,27 @@ export class TicketConfirmComponent implements OnInit, OnDestroy {
     try {
       this.ticketService.getOrder(orderId).subscribe({
         next: (order: Order) => {
+
+          // Get event data from localStorage
+          const eventDataStr = localStorage.getItem('selected_event');
+          let currentEventId: string | null = null;
+          
+          if (eventDataStr) {
+            try {
+              const eventData = JSON.parse(eventDataStr);
+              currentEventId = eventData.eventId;
+            } catch (error) {
+              console.error('Error parsing event data from localStorage:', error);
+            }
+          }
+
+          // Validate event match
+          if (currentEventId && order.eventId !== currentEventId) {
+            this.errorMessage.set('This ticket is for a different event');
+            this.isLoading.set(false);
+            return;
+          }
+
           this.orderData.set(order);
           
           // Don't auto-select any seats
