@@ -145,6 +145,21 @@ export class TicketConfirmComponent implements OnInit, OnDestroy {
       return;
     }
 
+     // Get event data from localStorage
+    const eventDataStr = localStorage.getItem('selected_event');
+    let eventId = order.eventId; // Default to order's eventId
+    
+    if (eventDataStr) {
+      try {
+        const eventData = JSON.parse(eventDataStr);
+        eventId = eventData.eventId;
+        console.log('Using event from localStorage:', eventData.eventName);
+      } catch (error) {
+        console.error('Error parsing event data from localStorage:', error);
+      }
+    }
+
+
     // Get the seat IDs that are selected
     const selectedSeatIds = Array.from(this.selectedSeats());
 
@@ -153,7 +168,7 @@ export class TicketConfirmComponent implements OnInit, OnDestroy {
       seatIds: selectedSeatIds,
       staffId: staffInfo?.id ?? "",
       staffName: staffInfo?.firstName ?? "",
-      eventId: order.eventId,
+      eventId: eventId,
     }).subscribe({
       next: (response: CheckinResponse) => {
         if (response.success) {
