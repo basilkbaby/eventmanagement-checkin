@@ -87,8 +87,7 @@ export class TicketConfirmComponent implements OnInit, OnDestroy {
           // Validate event match
           if (currentEventId && order.eventId !== currentEventId) {
             this.errorMessage.set('This ticket is for a different event');
-            this.isLoading.set(false);
-            return;
+            this.success.set(false);
           }
 
           this.orderData.set(order);
