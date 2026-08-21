@@ -1,6 +1,6 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://v4entertainment.azurewebsites.net',
-  appUrl: 'https://checkin.v4entertainments.co.uk',
+  apiUrl: 'https://crowdpass.azurewebsites.net', //https://v4entertainment.azurewebsites.net
+  appUrl: 'https://checkin.crowdpass.co.uk',
   enableAnalytics: true
 };
