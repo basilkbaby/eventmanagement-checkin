@@ -82,27 +82,36 @@ export class QrService {
     }
   }
 
+  // Legacy exact hostnames still supported
+  private static readonly SUPPORTED_HOSTNAMES = [
+    'booking.v4entertainments.co.uk',
+    'checkin.v4entertainments.co.uk'
+  ];
+
+  // Any subdomain of crowdpass.co.uk is supported (booking., checkin., etc.)
+  private static readonly SUPPORTED_ROOT_DOMAINS = [
+    'crowdpass.co.uk'
+  ];
+
+  private static isSupportedHostname(hostname: string): boolean {
+    if (QrService.SUPPORTED_HOSTNAMES.includes(hostname)) {
+      return true;
+    }
+    return QrService.SUPPORTED_ROOT_DOMAINS.some(
+      domain => hostname === domain || hostname.endsWith('.' + domain)
+    );
+  }
+
   parseQRUrl(qrData: string): any {
     try {
       // Check if it's a URL
       if (qrData.startsWith('http')) {
         const url = new URL(qrData);
-        
-        // Check if it's our booking URL
-        if (url.hostname === 'booking.v4entertainments.co.uk') {
+
+        // Check if it's one of our booking/check-in URLs
+        if (QrService.isSupportedHostname(url.hostname)) {
           const params = new URLSearchParams(url.search);
-          
-          return {
-            orderId: params.get('orderId'),
-            ticketId: params.get('ticketId'),
-            code: params.get('code')
-          };
-        }
-        
-        // Also support direct check-in URLs
-        if (url.hostname === 'checkin.v4entertainments.co.uk') {
-          const params = new URLSearchParams(url.search);
-          
+
           return {
             orderId: params.get('orderId'),
             ticketId: params.get('ticketId'),
